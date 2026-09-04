@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Near-Expiry Item List — Store Floor Tool</title>
+<style>
+  :root{
+    --ink:#111418;
+    --ink-soft:#4a5560;
+    --line:#d2d8de;
+    --bg:#f1f3f5;
+    --card:#ffffff;
+    --green:#00703c;
+    --green-bg:#e3f4ea;
+    --amber:#8a4b00;
+    --amber-bg:#fdefdc;
+    --red:#c00d20;
+    --red-bg:#fde7e9;
+    --focus:#0b57d0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    background:#fff;
+    border-bottom:3px solid var(--ink);
+    padding:16px 28px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  h1{
+    font-size:26px;
+    margin:0;
+    letter-spacing:-0.4px;
+  }
+  .sub{
+    font-size:15px;
+    color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .sub strong{color:var(--ink);}
+
+  /* ---------- Layout ---------- */
+  main{padding:24px 28px 120px;}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(360px,1fr));
+    gap:18px;
+    max-width:1500px;
+  }
+
+  /* ---------- Card ---------- */
+  .card{
+    background:var(--card);
+    border:2px solid var(--line);
+    border-left-width:10px;
+    border-radius:6px;
+    padding:18px 20px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    transition:opacity .25s ease, background .25s ease;
+  }
+  .card.green{border-left-color:var(--green);}
+  .card.amber{border-left-color:var(--amber);}
+  .card.red{border-left-color:var(--red);}
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .name{
+    font-size:20px;
+    font-weight:700;
+    line-height:1.25;
+    margin:0 0 4px;
+  }
+  .meta{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.45;
+  }
+  .badge{
+    flex:0 0 auto;
+    font-size:12.5px;
+    font-weight:800;
+    letter-spacing:.9px;
+    text-transform:uppercase;
+    padding:6px 10px;
+    border-radius:4px;
+    border:2px solid;
+    white-space:nowrap;
+  }
+  .badge.green{color:var(--green);background:var(--green-bg);border-color:var(--green);}
+  .badge.amber{color:var(--amber);background:var(--amber-bg);border-color:var(--amber);}
+  .badge.red{color:var(--red);background:var(--red-bg);border-color:var(--red);}
+
+  /* ---------- Countdown ---------- */
+  .clock{
+    font-size:40px;
+    font-weight:800;
+    line-height:1;
+    letter-spacing:-1px;
+    font-variant-numeric:tabular-nums;
+  }
+  .clock .unit{font-size:17px;font-weight:600;letter-spacing:0;margin-left:8px;color:var(--ink-soft);}
+  .clock.green{color:var(--green);}
+  .clock.amber{color:var(--amber);}
+  .clock.red{color:var(--red);}
+
+  .bar{
+    height:14px;
+    background:#e4e8ec;
+    border-radius:7px;
+    overflow:hidden;
+    margin-top:10px;
+  }
+  .bar span{
+    display:block;
+    height:100%;
+    border-radius:7px;
+    transition:width .4s linear;
+  }
+  .bar span.green{background:var(--green);}
+  .bar span.amber{background:var(--amber);}
+  .bar span.red{background:var(--red);}
+
+  .cutoff{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- Actions ---------- */
+  .actions{display:flex;gap:10px;margin-top:auto;}
+  button.act{
+    flex:1;
+    font-family:inherit;
+    font-size:15.5px;
+    font-weight:700;
+    padding:14px 10px;
+    border-radius:5px;
+    border:2px solid var(--ink);
+    cursor:pointer;
+    line-height:1.2;
+  }
+  button.act:focus-visible{outline:3px solid var(--focus);outline-offset:2px;}
+  .donate{background:var(--ink);color:#fff;}
+  .donate:hover{background:#2b3440;}
+  .discard{background:#fff;color:var(--ink);}
+  .discard:hover{background:#e9edf1;}
+  button.act:disabled{opacity:.35;cursor:not-allowed;}
+
+  /* ---------- Decided state ---------- */
+  .card.decided{
+    background:#eceff2;
+    border-color:#c3cad1;
+    border-left-color:#8a949e;
+    opacity:.62;
+  }
+  .card.decided .clock{color:var(--ink-soft);}
+  .card.decided .bar span{background:#98a2ac;}
+  .result{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:18px;
+    font-weight:800;
+    padding:14px 12px;
+    border-radius:5px;
+    border:2px dashed #8a949e;
+    color:#1d252c;
+    background:#f6f8f9;
+    margin-top:auto;
+  }
+  .result .tick{font-size:22px;}
+  .result small{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);letter-spacing:.3px;}
+
+  /* ---------- Researcher control ---------- */
+  #rig{
+    position:fixed;
+    right:14px;
+    bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(255,255,255,.5);
+    border:1px solid #dfe4e8;
+    border-radius:5px;
+    padding:5px 8px;
+    font-size:10.5px;
+    color:#9aa4ad;
+    opacity:.32;
+    transition:opacity .2s ease;
+    z-index:60;
+  }
+  #rig:hover, #rig:focus-within{opacity:1;background:#fff;color:var(--ink-soft);}
+  #rig label{letter-spacing:.4px;text-transform:uppercase;font-weight:600;}
+  #rig input{
+    width:44px;
+    font-family:inherit;
+    font-size:12px;
+    padding:3px 4px;
+    border:1px solid #c8cfd6;
+    border-radius:3px;
+    text-align:center;
+    color:var(--ink);
+  }
+  #rig button{
+    font-family:inherit;
+    font-size:10.5px;
+    letter-spacing:.5px;
+    padding:5px 8px;
+    border:1px solid #c8cfd6;
+    background:#fbfcfd;
+    border-radius:3px;
+    cursor:pointer;
+    color:inherit;
+    font-weight:600;
+  }
+  #rig button:hover{background:#eef1f4;}
+
+  /* ---------- Interrupt overlay ---------- */
+  #veil{
+    position:fixed;
+    inset:0;
+    background:rgba(14,18,22,.96);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:26px;
+    z-index:100;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .45s ease;
+  }
+  #veil.on{opacity:1;pointer-events:auto;}
+  #veil .msg{
+    font-size:38px;
+    font-weight:700;
+    letter-spacing:-.5px;
+  }
+  #veil .dots{font-size:16px;color:#b9c2ca;letter-spacing:1.5px;}
+  #veil button{
+    font-family:inherit;
+    font-size:17px;
+    font-weight:700;
+    padding:15px 42px;
+    border-radius:6px;
+    border:2px solid #fff;
+    background:transparent;
+    color:#fff;
+    cursor:pointer;
+    letter-spacing:.4px;
+  }
+  #veil button:hover{background:#fff;color:#111418;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Near-Expiry Items — Chilled &amp; Bakery</h1>
+  <div class="sub">
+    Store clock <strong id="wallclock">--:--</strong>
+    &nbsp;·&nbsp; <strong id="openCount">0</strong> awaiting decision
+    &nbsp;·&nbsp; Donation van departs 20:00
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+
+<!-- researcher-only rig -->
+<div id="rig">
+  <label for="adv">advance by:</label>
+  <input id="adv" type="number" min="0" max="600" step="1" value="15">
+  <span>min</span>
+  <button id="interruptBtn" type="button">SIMULATE INTERRUPT — researcher only</button>
+</div>
+
+<!-- interruption overlay -->
+<div id="veil" aria-hidden="true">
+  <div class="msg">Customer approaching…</div>
+  <div class="dots">SESSION HELD — TIME CONTINUES TO RUN</div>
+  <button id="resumeBtn" type="button">Resume</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ----------------------------------------------------------
+     Scenario data — minutes remaining at the moment the page loads.
+     Mix: 2 green (>4h), 2 amber (1–4h), 2 red (<1h).
+  ---------------------------------------------------------- */
+  var SCENARIO = [
+    { name: "Fresh Salmon Fillet 240g",   meta: "Chilled Fish · Aisle 4 Bay 2 · 6 units",      mins: 34  },
+    { name: "Rotisserie Chicken (Hot)",   meta: "Hot Deli Counter · 3 units",                  mins: 51  },
+    { name: "Greek Yogurt 4-pack",        meta: "Chilled Dairy · Aisle 2 Bay 7 · 11 units",    mins: 82  },
+    { name: "Caesar Salad Kit 320g",      meta: "Chilled Produce · Aisle 1 Bay 3 · 8 units",   mins: 186 },
+    { name: "Sourdough Loaf 800g",        meta: "In-store Bakery · Rack B · 14 units",         mins: 288 },
+    { name: "Sliced Roast Ham 200g",      meta: "Chilled Deli · Aisle 3 Bay 1 · 9 units",      mins: 375 }
+  ];
+
+  var WINDOW_MS = 8 * 60 * 60 * 1000;   // urgency bar spans an 8-hour window
+  var MIN = 60 * 1000;
+
+  var startedAt = Date.now();
+  var advanceMs = 0;                    // researcher-injected time skip
+
+  function now() { return Date.now() + advanceMs; }
+
+  /* Build model, most urgent first. All items advance by the same amount,
+     so this order never changes — no visible re-sort during the session. */
+  var items = SCENARIO
+    .slice()
+    .sort(function (a, b) { return a.mins - b.mins; })
+    .map(function (row, i) {
+      return {
+        id: "it" + i,
+        name: row.name,
+        meta: row.meta,
+        deadline: startedAt + row.mins * MIN,
+        decision: null,
+        el: null
+      };
+    });
+
+  /* ---------------------------- helpers ---------------------------- */
+
+  function tier(msLeft) {
+    if (msLeft <= 0) return "red";
+    if (msLeft > 4 * 60 * MIN) return "green";
+    if (msLeft >= 1 * 60 * MIN) return "amber";
+    return "red";
+  }
+
+  function tierLabel(msLeft) {
+    if (msLeft <= 0) return "Cut-off passed";
+    var t = tier(msLeft);
+    return t === "green" ? "On track" : (t === "amber" ? "Act soon" : "Urgent");
+  }
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function clockText(msLeft) {
+    if (msLeft <= 0) return { big: "00m 00s", unit: "cut-off passed" };
+    var total = Math.floor(msLeft / 1000);
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var s = total % 60;
+    if (h > 0) return { big: h + "h " + pad(m) + "m", unit: "remaining" };
+    return { big: pad(m) + "m " + pad(s) + "s", unit: "remaining" };
+  }
+
+  function timeOfDay(ts) {
+    var d = new Date(ts);
+    return pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  /* ---------------------------- rendering ---------------------------- */
+
+  var grid = document.getElementById("grid");
+
+  function buildCard(item) {
+    var card = document.createElement("article");
+    card.className = "card";
+
+    var top = document.createElement("div");
+    top.className = "card-top";
+
+    var idBlock = document.createElement("div");
+    var h = document.createElement("h2");
+    h.className = "name";
+    h.textContent = item.name;
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = item.meta;
+    idBlock.appendChild(h);
+    idBlock.appendChild(meta);
+
+    var badge = document.createElement("div");
+    badge.className = "badge";
+
+    top.appendChild(idBlock);
+    top.appendChild(badge);
+
+    var timeBlock = document.createElement("div");
+    var clock = document.createElement("div");
+    clock.className = "clock";
+    var big = document.createElement("span");
+    big.className = "big";
+    var unit = document.createElement("span");
+    unit.className = "unit";
+    clock.appendChild(big);
+    clock.appendChild(unit);
+
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    var fill = document.createElement("span");
+    bar.appendChild(fill);
+
+    var cutoff = document.createElement("div");
+    cutoff.className = "cutoff";
+
+    timeBlock.appendChild(clock);
+    timeBlock.appendChild(bar);
+    timeBlock.appendChild(cutoff);
+
+    var actions = document.createElement("div");
+    actions.className = "actions";
+    var donate = document.createElement("button");
+    donate.className = "act donate";
+    donate.type = "button";
+    donate.textContent = "Route to Donation";
+    var discard = document.createElement("button");
+    discard.className = "act discard";
+    discard.type = "button";
+    discard.textContent = "Mark for Discard";
+    actions.appendChild(donate);
+    actions.appendChild(discard);
+
+    var result = document.createElement("div");
+    result.className = "result";
+    result.style.display = "none";
+
+    donate.addEventListener("click", function () { decide(item, "donation"); });
+    discard.addEventListener("click", function () { decide(item, "discard"); });
+
+    card.appendChild(top);
+    card.appendChild(timeBlock);
+    card.appendChild(actions);
+    card.appendChild(result);
+
+    item.el = {
+      card: card, badge: badge, big: big, unit: unit, clock: clock,
+      fill: fill, cutoff: cutoff, actions: actions, result: result,
+      donate: donate, discard: discard
+    };
+    return card;
+  }
+
+  function decide(item, kind) {
+    if (item.decision) return;
+    item.decision = kind;
+    var e = item.el;
+    e.card.classList.add("decided");
+    e.actions.style.display = "none";
+    e.result.style.display = "flex";
+    e.result.innerHTML = "";
+    var tick = document.createElement("span");
+    tick.className = "tick";
+    tick.textContent = "✓";
+    var txt = document.createElement("div");
+    var line = document.createElement("span");
+    line.textContent = kind === "donation" ? "Marked for Donation" : "Marked for Discard";
+    var sub = document.createElement("small");
+    sub.textContent = (kind === "donation" ? "Added to donation crate" : "Sent to waste log")
+      + " · " + timeOfDay(now());
+    txt.appendChild(line);
+    txt.appendChild(sub);
+    e.result.appendChild(tick);
+    e.result.appendChild(txt);
+    refresh();
+  }
+
+  /* Updates numbers in place — never rebuilds the DOM, so there is no
+     flicker or reflow when the researcher skips time forward. */
+  function refresh() {
+    var t = now();
+    var open = 0;
+
+    items.forEach(function (item) {
+      var e = item.el;
+      var left = item.deadline - t;
+      var cls = tier(left);
+      var txt = clockText(left);
+
+      e.big.textContent = txt.big;
+      e.unit.textContent = txt.unit;
+      e.clock.className = "clock " + cls;
+
+      e.badge.textContent = tierLabel(left);
+      e.badge.className = "badge " + cls;
+
+      var pct = Math.max(0, Math.min(100, (left / WINDOW_MS) * 100));
+      e.fill.style.width = pct + "%";
+      e.fill.className = cls;
+
+      e.cutoff.textContent = "Donation cut-off " + timeOfDay(item.deadline);
+
+      if (!item.decision) {
+        e.card.className = "card " + cls;
+        open++;
+        // Past cut-off the item can no longer be routed to donation.
+        if (left <= 0) {
+          e.donate.disabled = true;
+          e.donate.textContent = "Donation window closed";
+        } else {
+          e.donate.disabled = false;
+          e.donate.textContent = "Route to Donation";
+        }
+      } else {
+        e.card.className = "card decided";
+      }
+    });
+
+    document.getElementById("openCount").textContent = open;
+    document.getElementById("wallclock").textContent = timeOfDay(t);
+  }
+
+  items.forEach(function (item) { grid.appendChild(buildCard(item)); });
+  refresh();
+  setInterval(refresh, 1000);
+
+  /* ---------------------- interrupt / resume rig ---------------------- */
+
+  var veil = document.getElementById("veil");
+  var advInput = document.getElementById("adv");
+  var interruptBtn = document.getElementById("interruptBtn");
+  var resumeBtn = document.getElementById("resumeBtn");
+
+  function openInterrupt() {
+    veil.classList.add("on");
+    veil.setAttribute("aria-hidden", "false");
+    resumeBtn.focus();
+  }
+
+  function resume() {
+    var mins = parseFloat(advInput.value);
+    if (!isFinite(mins) || mins < 0) mins = 0;
+    advanceMs += mins * MIN;
+    // Apply the new time BEFORE the overlay fades, so the participant only
+    // ever sees already-correct numbers underneath.
+    refresh();
+    veil.classList.remove("on");
+    veil.setAttribute("aria-hidden", "true");
+  }
+
+  interruptBtn.addEventListener("click", openInterrupt);
+  resumeBtn.addEventListener("click", resume);
+
+  // Discreet keyboard fallback for the researcher: Ctrl/Cmd + Shift + I
+  document.addEventListener("keydown", function (ev) {
+    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key.toLowerCase() === "i") {
+      ev.preventDefault();
+      if (veil.classList.contains("on")) { resume(); } else { openInterrupt(); }
+    }
+  });
+})();
+</script>
+</body>
+</html>
