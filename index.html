@@ -1,573 +1,1646 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Near-Expiry Item List — Store Floor Tool</title>
-<style>
-  :root{
-    --ink:#111418;
-    --ink-soft:#4a5560;
-    --line:#d2d8de;
-    --bg:#f1f3f5;
-    --card:#ffffff;
-    --green:#00703c;
-    --green-bg:#e3f4ea;
-    --amber:#8a4b00;
-    --amber-bg:#fdefdc;
-    --red:#c00d20;
-    --red-bg:#fde7e9;
-    --focus:#0b57d0;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:var(--bg);
-    color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-size:16px;
-    -webkit-font-smoothing:antialiased;
-  }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A near-expiry food triage prototype for supermarket staff.">
+  <title>FreshFlow — Near-Expiry Triage</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #5d6976;
+      --paper: #ffffff;
+      --canvas: #f2f4f5;
+      --line: #d9dee2;
+      --navy: #142a3a;
+      --navy-deep: #0c1d29;
+      --green: #18794e;
+      --green-soft: #e6f4ec;
+      --amber: #a05a00;
+      --amber-soft: #fff1d3;
+      --red: #c83232;
+      --red-soft: #fde8e7;
+      --focus: #1769aa;
+      --shadow: 0 3px 12px rgba(22, 34, 45, 0.08);
+    }
 
-  /* ---------- Header ---------- */
-  header{
-    background:#fff;
-    border-bottom:3px solid var(--ink);
-    padding:16px 28px;
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    gap:24px;
-    flex-wrap:wrap;
-  }
-  h1{
-    font-size:26px;
-    margin:0;
-    letter-spacing:-0.4px;
-  }
-  .sub{
-    font-size:15px;
-    color:var(--ink-soft);
-    font-variant-numeric:tabular-nums;
-  }
-  .sub strong{color:var(--ink);}
+    * { box-sizing: border-box; }
 
-  /* ---------- Layout ---------- */
-  main{padding:24px 28px 120px;}
-  .grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(360px,1fr));
-    gap:18px;
-    max-width:1500px;
-  }
+    html, body { min-height: 100%; }
 
-  /* ---------- Card ---------- */
-  .card{
-    background:var(--card);
-    border:2px solid var(--line);
-    border-left-width:10px;
-    border-radius:6px;
-    padding:18px 20px 16px;
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-    transition:opacity .25s ease, background .25s ease;
-  }
-  .card.green{border-left-color:var(--green);}
-  .card.amber{border-left-color:var(--amber);}
-  .card.red{border-left-color:var(--red);}
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  .card-top{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:14px;
-  }
-  .name{
-    font-size:20px;
-    font-weight:700;
-    line-height:1.25;
-    margin:0 0 4px;
-  }
-  .meta{
-    font-size:13.5px;
-    color:var(--ink-soft);
-    line-height:1.45;
-  }
-  .badge{
-    flex:0 0 auto;
-    font-size:12.5px;
-    font-weight:800;
-    letter-spacing:.9px;
-    text-transform:uppercase;
-    padding:6px 10px;
-    border-radius:4px;
-    border:2px solid;
-    white-space:nowrap;
-  }
-  .badge.green{color:var(--green);background:var(--green-bg);border-color:var(--green);}
-  .badge.amber{color:var(--amber);background:var(--amber-bg);border-color:var(--amber);}
-  .badge.red{color:var(--red);background:var(--red-bg);border-color:var(--red);}
+    button, input { font: inherit; }
 
-  /* ---------- Countdown ---------- */
-  .clock{
-    font-size:40px;
-    font-weight:800;
-    line-height:1;
-    letter-spacing:-1px;
-    font-variant-numeric:tabular-nums;
-  }
-  .clock .unit{font-size:17px;font-weight:600;letter-spacing:0;margin-left:8px;color:var(--ink-soft);}
-  .clock.green{color:var(--green);}
-  .clock.amber{color:var(--amber);}
-  .clock.red{color:var(--red);}
+    button { -webkit-tap-highlight-color: transparent; }
 
-  .bar{
-    height:14px;
-    background:#e4e8ec;
-    border-radius:7px;
-    overflow:hidden;
-    margin-top:10px;
-  }
-  .bar span{
-    display:block;
-    height:100%;
-    border-radius:7px;
-    transition:width .4s linear;
-  }
-  .bar span.green{background:var(--green);}
-  .bar span.amber{background:var(--amber);}
-  .bar span.red{background:var(--red);}
+    .app-header {
+      color: #fff;
+      background: var(--navy-deep);
+      border-bottom: 4px solid #2f9470;
+    }
 
-  .cutoff{
-    font-size:13px;
-    color:var(--ink-soft);
-    margin-top:8px;
-    font-variant-numeric:tabular-nums;
-  }
+    .header-inner,
+    main {
+      width: min(1180px, calc(100% - 48px));
+      margin: 0 auto;
+    }
 
-  /* ---------- Actions ---------- */
-  .actions{display:flex;gap:10px;margin-top:auto;}
-  button.act{
-    flex:1;
-    font-family:inherit;
-    font-size:15.5px;
-    font-weight:700;
-    padding:14px 10px;
-    border-radius:5px;
-    border:2px solid var(--ink);
-    cursor:pointer;
-    line-height:1.2;
-  }
-  button.act:focus-visible{outline:3px solid var(--focus);outline-offset:2px;}
-  .donate{background:var(--ink);color:#fff;}
-  .donate:hover{background:#2b3440;}
-  .discard{background:#fff;color:var(--ink);}
-  .discard:hover{background:#e9edf1;}
-  button.act:disabled{opacity:.35;cursor:not-allowed;}
+    .header-inner {
+      min-height: 86px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
 
-  /* ---------- Decided state ---------- */
-  .card.decided{
-    background:#eceff2;
-    border-color:#c3cad1;
-    border-left-color:#8a949e;
-    opacity:.62;
-  }
-  .card.decided .clock{color:var(--ink-soft);}
-  .card.decided .bar span{background:#98a2ac;}
-  .result{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-size:18px;
-    font-weight:800;
-    padding:14px 12px;
-    border-radius:5px;
-    border:2px dashed #8a949e;
-    color:#1d252c;
-    background:#f6f8f9;
-    margin-top:auto;
-  }
-  .result .tick{font-size:22px;}
-  .result small{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);letter-spacing:.3px;}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
 
-  /* ---------- Researcher control ---------- */
-  #rig{
-    position:fixed;
-    right:14px;
-    bottom:12px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    background:rgba(255,255,255,.5);
-    border:1px solid #dfe4e8;
-    border-radius:5px;
-    padding:5px 8px;
-    font-size:10.5px;
-    color:#9aa4ad;
-    opacity:.32;
-    transition:opacity .2s ease;
-    z-index:60;
-  }
-  #rig:hover, #rig:focus-within{opacity:1;background:#fff;color:var(--ink-soft);}
-  #rig label{letter-spacing:.4px;text-transform:uppercase;font-weight:600;}
-  #rig input{
-    width:44px;
-    font-family:inherit;
-    font-size:12px;
-    padding:3px 4px;
-    border:1px solid #c8cfd6;
-    border-radius:3px;
-    text-align:center;
-    color:var(--ink);
-  }
-  #rig button{
-    font-family:inherit;
-    font-size:10.5px;
-    letter-spacing:.5px;
-    padding:5px 8px;
-    border:1px solid #c8cfd6;
-    background:#fbfcfd;
-    border-radius:3px;
-    cursor:pointer;
-    color:inherit;
-    font-weight:600;
-  }
-  #rig button:hover{background:#eef1f4;}
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--navy-deep);
+      background: #8fd9b4;
+      font-size: 22px;
+      font-weight: 900;
+    }
 
-  /* ---------- Interrupt overlay ---------- */
-  #veil{
-    position:fixed;
-    inset:0;
-    background:rgba(14,18,22,.96);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    color:#fff;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:26px;
-    z-index:100;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .45s ease;
-  }
-  #veil.on{opacity:1;pointer-events:auto;}
-  #veil .msg{
-    font-size:38px;
-    font-weight:700;
-    letter-spacing:-.5px;
-  }
-  #veil .dots{font-size:16px;color:#b9c2ca;letter-spacing:1.5px;}
-  #veil button{
-    font-family:inherit;
-    font-size:17px;
-    font-weight:700;
-    padding:15px 42px;
-    border-radius:6px;
-    border:2px solid #fff;
-    background:transparent;
-    color:#fff;
-    cursor:pointer;
-    letter-spacing:.4px;
-  }
-  #veil button:hover{background:#fff;color:#111418;}
-</style>
+    .brand-name {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-context {
+      margin: 3px 0 0;
+      color: #bbcad4;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #dce7ed;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .header-tools {
+      display: flex;
+      align-items: center;
+      gap: 17px;
+    }
+
+    .language-toggle {
+      min-width: 72px;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.44);
+      border-radius: 7px;
+      padding: 0 11px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease;
+    }
+
+    .language-toggle:hover {
+      border-color: #8fd9b4;
+      background: rgba(143, 217, 180, 0.14);
+    }
+
+    .language-toggle:focus-visible {
+      outline: 3px solid #8fd9b4;
+      outline-offset: 2px;
+    }
+
+    .live-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #64d7a7;
+      box-shadow: 0 0 0 4px rgba(100, 215, 167, 0.16);
+    }
+
+    main { padding: 34px 0 100px; }
+
+    .page-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 3vw, 38px);
+      line-height: 1.1;
+      letter-spacing: -0.035em;
+    }
+
+    .intro {
+      max-width: 650px;
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .queue-count {
+      flex: 0 0 auto;
+      padding: 9px 12px;
+      border: 1px solid #cbd2d7;
+      border-radius: 7px;
+      color: #394653;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .heading-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .add-item-button {
+      min-height: 39px;
+      border: 2px solid var(--navy);
+      border-radius: 7px;
+      padding: 8px 14px;
+      color: #fff;
+      background: var(--navy);
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 120ms ease, transform 100ms ease;
+    }
+
+    .add-item-button:hover { background: #24485f; }
+    .add-item-button:active { transform: translateY(1px); }
+    .add-item-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+    .urgency-key {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-height: 44px;
+      margin-bottom: 18px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #4c5965;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .key-label {
+      margin-right: 2px;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 11px;
+    }
+
+    .key-item { display: inline-flex; align-items: center; gap: 7px; }
+
+    .key-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .key-dot.red { background: var(--red); }
+    .key-dot.amber { background: #d77e00; }
+    .key-dot.green { background: var(--green); }
+
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .view-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #e7eaec;
+    }
+
+    .view-tab {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 13px;
+      color: #4f5c67;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .view-tab:hover { background: rgba(255, 255, 255, 0.64); }
+
+    .view-tab[aria-selected="true"] {
+      color: var(--navy-deep);
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(20, 42, 58, 0.14);
+    }
+
+    .view-tab:focus-visible,
+    .export-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+    .export-button {
+      min-height: 40px;
+      border: 2px solid #2d6a52;
+      border-radius: 7px;
+      padding: 8px 14px;
+      color: #174c38;
+      background: #eef8f2;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .export-button:hover { background: #dff1e6; }
+    .export-button[hidden] { display: none; }
+    .export-button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .empty-list {
+      grid-column: 1 / -1;
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      border: 2px dashed #c8d0d5;
+      border-radius: 10px;
+      color: #65727d;
+      background: rgba(255, 255, 255, 0.62);
+      text-align: center;
+      font-size: 15px;
+      font-weight: 750;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .item-card {
+      position: relative;
+      min-height: 310px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-top: 6px solid var(--urgency-color);
+      border-radius: 10px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      transition: opacity 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .item-card.urgency-red { --urgency-color: var(--red); --urgency-bg: var(--red-soft); --urgency-text: #9f2525; }
+    .item-card.urgency-amber { --urgency-color: #d77e00; --urgency-bg: var(--amber-soft); --urgency-text: #855000; }
+    .item-card.urgency-green { --urgency-color: var(--green); --urgency-bg: var(--green-soft); --urgency-text: #12623f; }
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 19px 19px 16px;
+    }
+
+    .card-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 17px;
+    }
+
+    .rank {
+      color: #75808b;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .urgency-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border-radius: 5px;
+      color: var(--urgency-text);
+      background: var(--urgency-bg);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .urgency-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--urgency-color);
+    }
+
+    .item-name {
+      min-height: 50px;
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+    }
+
+    .item-meta {
+      margin: 5px 0 17px;
+      color: #697582;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .time-block {
+      margin-top: auto;
+      padding: 14px 15px 13px;
+      border: 1px solid color-mix(in srgb, var(--urgency-color) 26%, white);
+      border-radius: 8px;
+      background: var(--urgency-bg);
+    }
+
+    .time-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--urgency-text);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.065em;
+    }
+
+    .time-value {
+      display: block;
+      color: var(--ink);
+      font-size: clamp(25px, 2.4vw, 31px);
+      font-weight: 900;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      white-space: nowrap;
+    }
+
+    .time-value .remaining-word {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .urgency-track {
+      height: 7px;
+      overflow: hidden;
+      margin-top: 11px;
+      border-radius: 999px;
+      background: rgba(23, 33, 43, 0.11);
+    }
+
+    .urgency-fill {
+      height: 100%;
+      width: var(--bar-width);
+      min-width: 8px;
+      border-radius: inherit;
+      background: var(--urgency-color);
+      transition: width 250ms ease, background-color 250ms ease;
+    }
+
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      padding: 0 19px 19px;
+    }
+
+    .action-btn {
+      min-height: 50px;
+      border: 2px solid #284a61;
+      border-radius: 7px;
+      padding: 9px 10px;
+      color: #17374d;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: transform 100ms ease, background-color 100ms ease, color 100ms ease;
+    }
+
+    .action-btn:hover { background: #e8f0f4; }
+    .action-btn:active { transform: translateY(1px); }
+
+    .action-btn.discard {
+      border-color: #b6bdc3;
+      color: #3f4952;
+    }
+
+    .action-btn.discard:hover { background: #f0f1f2; }
+
+    .action-btn:focus-visible,
+    .research-input:focus-visible,
+    .research-button:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .item-card.is-complete {
+      border-top-color: #77818a;
+      background: #e9ecee;
+      box-shadow: none;
+    }
+
+    .item-card.is-complete .card-body { opacity: 0.48; }
+    .item-card.is-complete .card-actions { display: none; }
+
+    .item-card.is-complete.is-manage-view {
+      border-top-color: var(--urgency-color);
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .item-card.is-complete.is-manage-view .card-body { opacity: 1; }
+    .item-card.is-complete.is-manage-view .card-actions { display: grid; }
+
+    .confirmation {
+      display: none;
+      min-height: 69px;
+      align-items: center;
+      gap: 11px;
+      margin: 0 19px 19px;
+      padding: 14px 15px;
+      border: 1px solid #aeb8bf;
+      border-radius: 7px;
+      color: #23313c;
+      background: #fff;
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .item-card.is-complete .confirmation { display: flex; }
+
+    .checkmark {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #fff;
+      background: #344d5e;
+      font-size: 18px;
+    }
+
+    .research-dock {
+      position: fixed;
+      z-index: 40;
+      right: 14px;
+      bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      color: #dce4e9;
+      background: rgba(16, 27, 35, 0.94);
+      box-shadow: 0 5px 22px rgba(0, 0, 0, 0.24);
+      font-size: 11px;
+    }
+
+    .research-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .research-only {
+      color: #8fa1ad;
+      font-size: 9px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .research-input {
+      width: 50px;
+      height: 32px;
+      border: 1px solid #72818b;
+      border-radius: 5px;
+      color: #17212b;
+      background: #fff;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .research-input:disabled { opacity: 0.45; }
+
+    .research-button {
+      height: 32px;
+      border: 1px solid #9aabb5;
+      border-radius: 5px;
+      padding: 0 10px;
+      color: #fff;
+      background: #334a59;
+      font-size: 10px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.045em;
+      cursor: pointer;
+    }
+
+    .research-button:hover { background: #456172; }
+    .research-button.is-resume { color: #10251c; background: #8fd9b4; border-color: #8fd9b4; }
+
+    .interrupt-overlay {
+      position: fixed;
+      z-index: 30;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      visibility: hidden;
+      opacity: 0;
+      background: rgba(7, 18, 26, 0.88);
+      backdrop-filter: blur(4px);
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    .add-dialog {
+      width: min(540px, calc(100% - 28px));
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border: 0;
+      border-radius: 12px;
+      padding: 0;
+      color: var(--ink);
+      background: #fff;
+      box-shadow: 0 22px 70px rgba(4, 16, 24, 0.34);
+    }
+
+    .add-dialog::backdrop {
+      background: rgba(7, 18, 26, 0.72);
+      backdrop-filter: blur(3px);
+    }
+
+    .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 23px 24px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .dialog-header h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.025em;
+    }
+
+    .dialog-helper {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .dialog-close {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      border: 1px solid #cbd2d7;
+      border-radius: 7px;
+      color: #3e4c57;
+      background: #f7f8f8;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .add-form { padding: 21px 24px 24px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .form-field.full { grid-column: 1 / -1; }
+
+    .form-field label,
+    .time-fieldset legend {
+      color: #34424d;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #aeb8c0;
+      border-radius: 7px;
+      padding: 0 12px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 15px;
+    }
+
+    .form-input:focus-visible,
+    .dialog-close:focus-visible,
+    .dialog-button:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .time-fieldset {
+      grid-column: 1 / -1;
+      margin: 0;
+      border: 0;
+      padding: 0;
+    }
+
+    .time-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 7px;
+    }
+
+    .input-with-unit { position: relative; }
+    .input-with-unit .form-input { padding-right: 65px; }
+
+    .input-unit {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      color: #697582;
+      font-size: 12px;
+      font-weight: 750;
+      pointer-events: none;
+    }
+
+    .form-error {
+      display: none;
+      margin: 14px 0 0;
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: #902323;
+      background: var(--red-soft);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .form-error.is-visible { display: block; }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .dialog-button {
+      min-height: 42px;
+      border: 1px solid #aeb8c0;
+      border-radius: 7px;
+      padding: 8px 17px;
+      color: #34424d;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .dialog-button.primary {
+      border-color: var(--navy);
+      color: #fff;
+      background: var(--navy);
+    }
+
+    .dialog-button:hover { background: #f0f2f3; }
+    .dialog-button.primary:hover { background: #24485f; }
+
+    .interrupt-overlay.is-visible { visibility: visible; opacity: 1; }
+
+    .interrupt-message {
+      max-width: 560px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .customer-icon {
+      width: 74px;
+      height: 74px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 24px;
+      border: 2px solid rgba(255, 255, 255, 0.58);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .customer-icon svg { width: 38px; height: 38px; }
+
+    .interrupt-message h2 {
+      margin: 0;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .interrupt-message p {
+      margin: 16px 0 0;
+      color: #cfdae1;
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 900px) {
+      .item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .header-inner, main { width: min(100% - 28px, 1180px); }
+      .header-inner { min-height: 76px; }
+      .brand-context, .header-status { display: none; }
+      .header-tools { gap: 0; }
+      main { padding-top: 25px; }
+      .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .heading-controls { width: 100%; }
+      .queue-count { flex: 1; }
+      .urgency-key { flex-wrap: wrap; gap: 9px 14px; }
+      .list-toolbar { align-items: stretch; flex-direction: column; }
+      .view-tabs { width: 100%; overflow-x: auto; }
+      .view-tab { flex: 1 0 auto; }
+      .export-button { width: 100%; }
+      .key-label { width: 100%; }
+      .item-grid { grid-template-columns: 1fr; }
+      .item-card { min-height: 298px; }
+      .research-dock { left: 8px; right: 8px; justify-content: center; }
+      .research-only { display: none; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-field.full, .time-fieldset { grid-column: 1; }
+      .dialog-header, .add-form { padding-left: 18px; padding-right: 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
 </head>
 <body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand" id="brand" aria-label="FreshFlow store operations">
+        <div class="brand-mark" aria-hidden="true">F</div>
+        <div>
+          <p class="brand-name">FreshFlow</p>
+          <p class="brand-context" id="brandContext">Store operations · Near-expiry triage</p>
+        </div>
+      </div>
+      <div class="header-tools">
+        <div class="header-status"><span class="live-dot" aria-hidden="true"></span><span id="headerStatusText">Countdown active</span></div>
+        <button class="language-toggle" id="languageToggle" type="button" aria-label="切换至中文">中文</button>
+      </div>
+    </div>
+  </header>
 
-<header>
-  <h1>Near-Expiry Items — Chilled &amp; Bakery</h1>
-  <div class="sub">
-    Store clock <strong id="wallclock">--:--</strong>
-    &nbsp;·&nbsp; <strong id="openCount">0</strong> awaiting decision
-    &nbsp;·&nbsp; Donation van departs 20:00
+  <main>
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <h1 id="page-title">Near-expiry items</h1>
+        <p class="intro" id="introText">Review items before their donation cut-off. Most urgent items are shown first.</p>
+      </div>
+      <div class="heading-controls">
+        <div class="queue-count" id="queueCount">6 items to review</div>
+        <button class="add-item-button" id="addItemButton" type="button">＋ Add item</button>
+      </div>
+    </section>
+
+    <aside class="urgency-key" id="urgencyKey" aria-label="Urgency key">
+      <span class="key-label" id="keyLabel">Time remaining</span>
+      <span class="key-item"><span class="key-dot red"></span><span id="redKey">Critical · under 1 hour</span></span>
+      <span class="key-item"><span class="key-dot amber"></span><span id="amberKey">Soon · 1–4 hours</span></span>
+      <span class="key-item"><span class="key-dot green"></span><span id="greenKey">On track · over 4 hours</span></span>
+    </aside>
+
+    <div class="list-toolbar">
+      <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Item lists">
+        <button class="view-tab" id="pendingTab" type="button" role="tab" aria-selected="true" data-view="pending">To review (6)</button>
+        <button class="view-tab" id="donationTab" type="button" role="tab" aria-selected="false" data-view="donation">Donation list (0)</button>
+        <button class="view-tab" id="discardTab" type="button" role="tab" aria-selected="false" data-view="discard">Discard list (0)</button>
+      </div>
+      <button class="export-button" id="exportListButton" type="button" hidden>↓ Export current list</button>
+    </div>
+
+    <section class="item-grid" id="itemGrid" aria-label="Items sorted by urgency" aria-live="polite"></section>
+  </main>
+
+  <dialog class="add-dialog" id="addItemDialog" aria-labelledby="addDialogTitle">
+    <div class="dialog-header">
+      <div>
+        <h2 id="addDialogTitle">Add near-expiry item</h2>
+        <p class="dialog-helper" id="addDialogHelper">The item will be ranked automatically by its remaining time.</p>
+      </div>
+      <button class="dialog-close" id="closeAddDialog" type="button" aria-label="Close">×</button>
+    </div>
+    <form class="add-form" id="addItemForm" novalidate>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label for="newItemName" id="itemNameLabel">Item name</label>
+          <input class="form-input" id="newItemName" name="itemName" type="text" maxlength="60" autocomplete="off" required>
+        </div>
+        <div class="form-field">
+          <label for="newItemCategory" id="itemCategoryLabel">Category</label>
+          <select class="form-input" id="newItemCategory" name="itemCategory" required></select>
+        </div>
+        <div class="form-field">
+          <label for="newItemLocation" id="itemLocationLabel">Location</label>
+          <select class="form-input" id="newItemLocation" name="itemLocation" required></select>
+        </div>
+        <div class="form-field">
+          <label for="newItemQuantity" id="itemQuantityLabel">Quantity</label>
+          <input class="form-input" id="newItemQuantity" name="itemQuantity" type="number" min="1" max="999" step="1" value="1" required>
+        </div>
+        <fieldset class="time-fieldset">
+          <legend id="remainingTimeLabel">Time remaining before donation cut-off</legend>
+          <div class="time-inputs">
+            <div class="input-with-unit">
+              <label class="sr-only" for="newItemHours" id="hoursLabel">Hours</label>
+              <input class="form-input" id="newItemHours" name="itemHours" type="number" min="0" max="72" step="1" value="1" required>
+              <span class="input-unit" id="hoursUnit">hours</span>
+            </div>
+            <div class="input-with-unit">
+              <label class="sr-only" for="newItemMinutes" id="minutesLabel">Minutes</label>
+              <input class="form-input" id="newItemMinutes" name="itemMinutes" type="number" min="0" max="59" step="1" value="0" required>
+              <span class="input-unit" id="minutesUnit">minutes</span>
+            </div>
+          </div>
+        </fieldset>
+        <div class="form-field full" id="itemStatusField" hidden>
+          <label for="newItemStatus" id="itemStatusLabel">List status</label>
+          <select class="form-input" id="newItemStatus" name="itemStatus">
+            <option id="statusPendingOption" value="pending">To review</option>
+            <option id="statusDonationOption" value="donation">Donation list</option>
+            <option id="statusDiscardOption" value="discard">Discard list</option>
+          </select>
+        </div>
+      </div>
+      <p class="form-error" id="addFormError" role="alert">Enter a name, location, quantity and a remaining time greater than zero.</p>
+      <div class="dialog-actions">
+        <button class="dialog-button" id="cancelAddItem" type="button">Cancel</button>
+        <button class="dialog-button primary" id="submitAddItem" type="submit">Add to list</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="research-dock" id="researchDock" aria-label="Researcher controls">
+    <span class="research-only" id="researchOnly">Researcher only</span>
+    <label class="research-label" for="advanceMinutes"><span id="advanceLabel">Advance by</span>
+      <input class="research-input" id="advanceMinutes" type="number" min="0" max="240" step="1" value="15" inputmode="numeric" aria-describedby="minuteUnit">
+      <span id="minuteUnit">min</span>
+    </label>
+    <button class="research-button" id="interruptButton" type="button">Simulate interrupt</button>
   </div>
-</header>
 
-<main>
-  <div class="grid" id="grid"></div>
-</main>
+  <div class="interrupt-overlay" id="interruptOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="interruptTitle" aria-describedby="interruptDescription">
+    <div class="interrupt-message">
+      <div class="customer-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21a8 8 0 0 0-16 0"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <h2 id="interruptTitle">Customer approaching…</h2>
+      <p id="interruptDescription">Pause this task and assist the customer.</p>
+    </div>
+  </div>
 
-<!-- researcher-only rig -->
-<div id="rig">
-  <label for="adv">advance by:</label>
-  <input id="adv" type="number" min="0" max="600" step="1" value="15">
-  <span>min</span>
-  <button id="interruptBtn" type="button">SIMULATE INTERRUPT — researcher only</button>
-</div>
+  <div class="sr-only" id="announcement" aria-live="assertive"></div>
 
-<!-- interruption overlay -->
-<div id="veil" aria-hidden="true">
-  <div class="msg">Customer approaching…</div>
-  <div class="dots">SESSION HELD — TIME CONTINUES TO RUN</div>
-  <button id="resumeBtn" type="button">Resume</button>
-</div>
+  <script>
+    (() => {
+      const items = [
+        { id: 1, name: { en: "Fresh Salmon Fillet", zh: "鲜三文鱼柳" }, category: "seafood", location: "chiller2", quantity: 2, seconds: 42 * 60 },
+        { id: 2, name: { en: "Chicken Caesar Salad", zh: "鸡肉凯撒沙拉" }, category: "readyMeals", location: "chiller4", quantity: 3, seconds: 58 * 60 },
+        { id: 3, name: { en: "Greek Yogurt 4-pack", zh: "希腊酸奶四联装" }, category: "dairy", location: "chiller1", quantity: 5, seconds: (1 * 60 + 40) * 60 },
+        { id: 4, name: { en: "Sourdough Loaf", zh: "酸面包" }, category: "bakery", location: "bay6", quantity: 4, seconds: (3 * 60 + 15) * 60 },
+        { id: 5, name: { en: "Fresh Strawberries 250g", zh: "鲜草莓 250 克" }, category: "produce", location: "bay3", quantity: 6, seconds: (5 * 60 + 20) * 60 },
+        { id: 6, name: { en: "Spinach & Ricotta Ravioli", zh: "菠菜乳清干酪意式饺" }, category: "freshPasta", location: "chiller3", quantity: 3, seconds: (7 * 60 + 45) * 60 }
+      ];
 
-<script>
-(function () {
-  "use strict";
-
-  /* ----------------------------------------------------------
-     Scenario data — minutes remaining at the moment the page loads.
-     Mix: 2 green (>4h), 2 amber (1–4h), 2 red (<1h).
-  ---------------------------------------------------------- */
-  var SCENARIO = [
-    { name: "Fresh Salmon Fillet 240g",   meta: "Chilled Fish · Aisle 4 Bay 2 · 6 units",      mins: 34  },
-    { name: "Rotisserie Chicken (Hot)",   meta: "Hot Deli Counter · 3 units",                  mins: 51  },
-    { name: "Greek Yogurt 4-pack",        meta: "Chilled Dairy · Aisle 2 Bay 7 · 11 units",    mins: 82  },
-    { name: "Caesar Salad Kit 320g",      meta: "Chilled Produce · Aisle 1 Bay 3 · 8 units",   mins: 186 },
-    { name: "Sourdough Loaf 800g",        meta: "In-store Bakery · Rack B · 14 units",         mins: 288 },
-    { name: "Sliced Roast Ham 200g",      meta: "Chilled Deli · Aisle 3 Bay 1 · 9 units",      mins: 375 }
-  ];
-
-  var WINDOW_MS = 8 * 60 * 60 * 1000;   // urgency bar spans an 8-hour window
-  var MIN = 60 * 1000;
-
-  var startedAt = Date.now();
-  var advanceMs = 0;                    // researcher-injected time skip
-
-  function now() { return Date.now() + advanceMs; }
-
-  /* Build model, most urgent first. All items advance by the same amount,
-     so this order never changes — no visible re-sort during the session. */
-  var items = SCENARIO
-    .slice()
-    .sort(function (a, b) { return a.mins - b.mins; })
-    .map(function (row, i) {
-      return {
-        id: "it" + i,
-        name: row.name,
-        meta: row.meta,
-        deadline: startedAt + row.mins * MIN,
-        decision: null,
-        el: null
-      };
-    });
-
-  /* ---------------------------- helpers ---------------------------- */
-
-  function tier(msLeft) {
-    if (msLeft <= 0) return "red";
-    if (msLeft > 4 * 60 * MIN) return "green";
-    if (msLeft >= 1 * 60 * MIN) return "amber";
-    return "red";
-  }
-
-  function tierLabel(msLeft) {
-    if (msLeft <= 0) return "Cut-off passed";
-    var t = tier(msLeft);
-    return t === "green" ? "On track" : (t === "amber" ? "Act soon" : "Urgent");
-  }
-
-  function pad(n) { return n < 10 ? "0" + n : "" + n; }
-
-  function clockText(msLeft) {
-    if (msLeft <= 0) return { big: "00m 00s", unit: "cut-off passed" };
-    var total = Math.floor(msLeft / 1000);
-    var h = Math.floor(total / 3600);
-    var m = Math.floor((total % 3600) / 60);
-    var s = total % 60;
-    if (h > 0) return { big: h + "h " + pad(m) + "m", unit: "remaining" };
-    return { big: pad(m) + "m " + pad(s) + "s", unit: "remaining" };
-  }
-
-  function timeOfDay(ts) {
-    var d = new Date(ts);
-    return pad(d.getHours()) + ":" + pad(d.getMinutes());
-  }
-
-  /* ---------------------------- rendering ---------------------------- */
-
-  var grid = document.getElementById("grid");
-
-  function buildCard(item) {
-    var card = document.createElement("article");
-    card.className = "card";
-
-    var top = document.createElement("div");
-    top.className = "card-top";
-
-    var idBlock = document.createElement("div");
-    var h = document.createElement("h2");
-    h.className = "name";
-    h.textContent = item.name;
-    var meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent = item.meta;
-    idBlock.appendChild(h);
-    idBlock.appendChild(meta);
-
-    var badge = document.createElement("div");
-    badge.className = "badge";
-
-    top.appendChild(idBlock);
-    top.appendChild(badge);
-
-    var timeBlock = document.createElement("div");
-    var clock = document.createElement("div");
-    clock.className = "clock";
-    var big = document.createElement("span");
-    big.className = "big";
-    var unit = document.createElement("span");
-    unit.className = "unit";
-    clock.appendChild(big);
-    clock.appendChild(unit);
-
-    var bar = document.createElement("div");
-    bar.className = "bar";
-    var fill = document.createElement("span");
-    bar.appendChild(fill);
-
-    var cutoff = document.createElement("div");
-    cutoff.className = "cutoff";
-
-    timeBlock.appendChild(clock);
-    timeBlock.appendChild(bar);
-    timeBlock.appendChild(cutoff);
-
-    var actions = document.createElement("div");
-    actions.className = "actions";
-    var donate = document.createElement("button");
-    donate.className = "act donate";
-    donate.type = "button";
-    donate.textContent = "Route to Donation";
-    var discard = document.createElement("button");
-    discard.className = "act discard";
-    discard.type = "button";
-    discard.textContent = "Mark for Discard";
-    actions.appendChild(donate);
-    actions.appendChild(discard);
-
-    var result = document.createElement("div");
-    result.className = "result";
-    result.style.display = "none";
-
-    donate.addEventListener("click", function () { decide(item, "donation"); });
-    discard.addEventListener("click", function () { decide(item, "discard"); });
-
-    card.appendChild(top);
-    card.appendChild(timeBlock);
-    card.appendChild(actions);
-    card.appendChild(result);
-
-    item.el = {
-      card: card, badge: badge, big: big, unit: unit, clock: clock,
-      fill: fill, cutoff: cutoff, actions: actions, result: result,
-      donate: donate, discard: discard
-    };
-    return card;
-  }
-
-  function decide(item, kind) {
-    if (item.decision) return;
-    item.decision = kind;
-    var e = item.el;
-    e.card.classList.add("decided");
-    e.actions.style.display = "none";
-    e.result.style.display = "flex";
-    e.result.innerHTML = "";
-    var tick = document.createElement("span");
-    tick.className = "tick";
-    tick.textContent = "✓";
-    var txt = document.createElement("div");
-    var line = document.createElement("span");
-    line.textContent = kind === "donation" ? "Marked for Donation" : "Marked for Discard";
-    var sub = document.createElement("small");
-    sub.textContent = (kind === "donation" ? "Added to donation crate" : "Sent to waste log")
-      + " · " + timeOfDay(now());
-    txt.appendChild(line);
-    txt.appendChild(sub);
-    e.result.appendChild(tick);
-    e.result.appendChild(txt);
-    refresh();
-  }
-
-  /* Updates numbers in place — never rebuilds the DOM, so there is no
-     flicker or reflow when the researcher skips time forward. */
-  function refresh() {
-    var t = now();
-    var open = 0;
-
-    items.forEach(function (item) {
-      var e = item.el;
-      var left = item.deadline - t;
-      var cls = tier(left);
-      var txt = clockText(left);
-
-      e.big.textContent = txt.big;
-      e.unit.textContent = txt.unit;
-      e.clock.className = "clock " + cls;
-
-      e.badge.textContent = tierLabel(left);
-      e.badge.className = "badge " + cls;
-
-      var pct = Math.max(0, Math.min(100, (left / WINDOW_MS) * 100));
-      e.fill.style.width = pct + "%";
-      e.fill.className = cls;
-
-      e.cutoff.textContent = "Donation cut-off " + timeOfDay(item.deadline);
-
-      if (!item.decision) {
-        e.card.className = "card " + cls;
-        open++;
-        // Past cut-off the item can no longer be routed to donation.
-        if (left <= 0) {
-          e.donate.disabled = true;
-          e.donate.textContent = "Donation window closed";
-        } else {
-          e.donate.disabled = false;
-          e.donate.textContent = "Route to Donation";
+      const translations = {
+        en: {
+          pageTitleMeta: "FreshFlow — Near-Expiry Triage",
+          description: "A near-expiry food triage prototype for supermarket staff.",
+          brandAria: "FreshFlow store operations",
+          brandContext: "Store operations · Near-expiry triage",
+          countdownActive: "Countdown active",
+          switchLabel: "切换至中文",
+          switchText: "中文",
+          pageTitle: "Near-expiry items",
+          intro: "Review items before their donation cut-off. Most urgent items are shown first.",
+          addItem: "＋ Add item",
+          addDialogTitle: "Add near-expiry item",
+          addDialogHelper: "The item will be ranked automatically by its remaining time. Added items last for this session only.",
+          editDialogTitle: "Edit item",
+          editDialogHelper: "Update the item details, remaining time or destination list.",
+          closeDialog: "Close",
+          itemNameLabel: "Item name",
+          itemCategoryLabel: "Category",
+          itemLocationLabel: "Location",
+          selectCategory: "Select a category",
+          selectLocation: "Select a location",
+          itemQuantityLabel: "Quantity",
+          remainingTimeLabel: "Time remaining before donation cut-off",
+          hours: "Hours",
+          minutes: "Minutes",
+          hoursUnit: "hours",
+          minutesUnit: "minutes",
+          itemStatusLabel: "List status",
+          statusPending: "To review",
+          statusDonation: "Donation list",
+          statusDiscard: "Discard list",
+          cancel: "Cancel",
+          addToList: "Add to list",
+          saveChanges: "Save changes",
+          addError: "Enter a name, category, location, quantity and a remaining time greater than zero.",
+          quantityMeta: quantity => `${quantity} ${quantity === 1 ? "unit" : "units"}`,
+          addedAnnouncement: name => `${name} added to the list.`,
+          savedAnnouncement: name => `${name} updated.`,
+          restoredAnnouncement: name => `${name} returned to the review list.`,
+          queue: count => `${count} ${count === 1 ? "item" : "items"} to review`,
+          pendingTab: count => `To review (${count})`,
+          donationTab: count => `Donation list (${count})`,
+          discardTab: count => `Discard list (${count})`,
+          tabsAria: "Item lists",
+          exportList: "↓ Export current list",
+          editItem: "Edit item",
+          restorePending: "Return to review",
+          emptyPending: "No items are waiting for review.",
+          emptyDonation: "No items have been marked for donation.",
+          emptyDiscard: "No items have been marked for discard.",
+          exportHeaders: ["Item name", "Category", "Location", "Quantity", "Time remaining", "Status"],
+          exportStatusDonation: "Donation",
+          exportStatusDiscard: "Discard",
+          exportedAnnouncement: "The current list has been exported.",
+          urgencyKeyAria: "Urgency key",
+          keyLabel: "Time remaining",
+          redKey: "Critical · under 1 hour",
+          amberKey: "Soon · 1–4 hours",
+          greenKey: "On track · over 4 hours",
+          gridAria: "Items sorted by urgency",
+          researchAria: "Researcher controls",
+          researcherOnly: "Researcher only",
+          advanceBy: "Advance by",
+          minuteUnit: "min",
+          simulateInterrupt: "Simulate interrupt",
+          resume: "Resume",
+          interruptTitle: "Customer approaching…",
+          interruptDescription: "Pause this task and assist the customer.",
+          priority: rank => `Priority ${rank}`,
+          critical: "Critical",
+          soon: "Soon",
+          onTrack: "On track",
+          cutoffLabel: "Before donation cut-off",
+          cutoffReached: "Cut-off reached",
+          remaining: "remaining",
+          donate: "Route to Donation",
+          discard: "Mark for Discard",
+          markedDonation: "Marked for Donation",
+          markedDiscard: "Marked for Discard",
+          announcedDonation: name => `${name} marked for Donation.`,
+          announcedDiscard: name => `${name} marked for Discard.`,
+          resumed: "Near-expiry task resumed."
+        },
+        zh: {
+          pageTitleMeta: "FreshFlow — 临期食品处理",
+          description: "供超市员工使用的临期食品处理原型。",
+          brandAria: "FreshFlow 门店运营",
+          brandContext: "门店运营 · 临期食品处理",
+          countdownActive: "倒计时运行中",
+          switchLabel: "Switch to English",
+          switchText: "EN",
+          pageTitle: "临期食品",
+          intro: "请在捐赠截止时间前处理商品。最紧急的商品显示在最前面。",
+          addItem: "＋ 添加商品",
+          addDialogTitle: "添加临期商品",
+          addDialogHelper: "系统会根据剩余时间自动排序。新增商品仅保留在本次页面中。",
+          editDialogTitle: "编辑商品",
+          editDialogHelper: "可以修改商品信息、剩余时间或所属清单。",
+          closeDialog: "关闭",
+          itemNameLabel: "商品名称",
+          itemCategoryLabel: "商品类别",
+          itemLocationLabel: "商品位置",
+          selectCategory: "请选择类别",
+          selectLocation: "请选择位置",
+          itemQuantityLabel: "数量",
+          remainingTimeLabel: "距离捐赠截止时间",
+          hours: "小时",
+          minutes: "分钟",
+          hoursUnit: "小时",
+          minutesUnit: "分钟",
+          itemStatusLabel: "所属清单",
+          statusPending: "待处理",
+          statusDonation: "捐赠清单",
+          statusDiscard: "丢弃清单",
+          cancel: "取消",
+          addToList: "添加到清单",
+          saveChanges: "保存修改",
+          addError: "请填写商品名称，并选择类别、位置和数量，再输入大于零的剩余时间。",
+          quantityMeta: quantity => `${quantity} 件`,
+          addedAnnouncement: name => `${name}已添加到清单。`,
+          savedAnnouncement: name => `${name}的信息已更新。`,
+          restoredAnnouncement: name => `${name}已恢复到待处理清单。`,
+          queue: count => `待处理 ${count} 件商品`,
+          pendingTab: count => `待处理（${count}）`,
+          donationTab: count => `捐赠清单（${count}）`,
+          discardTab: count => `丢弃清单（${count}）`,
+          tabsAria: "商品清单",
+          exportList: "↓ 导出当前清单",
+          editItem: "编辑商品",
+          restorePending: "恢复待处理",
+          emptyPending: "目前没有待处理商品。",
+          emptyDonation: "目前没有已标记为捐赠的商品。",
+          emptyDiscard: "目前没有已标记为丢弃的商品。",
+          exportHeaders: ["商品名称", "商品类别", "商品位置", "数量", "剩余时间", "处理状态"],
+          exportStatusDonation: "捐赠",
+          exportStatusDiscard: "丢弃",
+          exportedAnnouncement: "当前清单已导出。",
+          urgencyKeyAria: "紧急程度说明",
+          keyLabel: "剩余时间",
+          redKey: "紧急 · 少于 1 小时",
+          amberKey: "即将到期 · 1–4 小时",
+          greenKey: "时间充足 · 超过 4 小时",
+          gridAria: "按紧急程度排序的商品",
+          researchAria: "研究人员控制",
+          researcherOnly: "仅限研究人员",
+          advanceBy: "快进",
+          minuteUnit: "分钟",
+          simulateInterrupt: "模拟中断",
+          resume: "继续任务",
+          interruptTitle: "顾客正在靠近…",
+          interruptDescription: "请暂停当前任务并协助顾客。",
+          priority: rank => `优先级 ${rank}`,
+          critical: "紧急",
+          soon: "即将到期",
+          onTrack: "时间充足",
+          cutoffLabel: "距离捐赠截止时间",
+          cutoffReached: "已到截止时间",
+          remaining: "剩余",
+          donate: "转为捐赠",
+          discard: "标记为丢弃",
+          markedDonation: "已标记为捐赠",
+          markedDiscard: "已标记为丢弃",
+          announcedDonation: name => `${name}已标记为捐赠。`,
+          announcedDiscard: name => `${name}已标记为丢弃。`,
+          resumed: "已继续临期食品处理任务。"
         }
-      } else {
-        e.card.className = "card decided";
+      };
+
+      const categoryOptions = [
+        { value: "produce", en: "Produce", zh: "果蔬" },
+        { value: "dairy", en: "Dairy", zh: "乳制品" },
+        { value: "bakery", en: "Bakery", zh: "烘焙" },
+        { value: "seafood", en: "Seafood", zh: "海鲜" },
+        { value: "meat", en: "Meat", zh: "肉类" },
+        { value: "readyMeals", en: "Ready meals", zh: "即食餐" },
+        { value: "freshPasta", en: "Fresh pasta", zh: "鲜意面" },
+        { value: "deli", en: "Deli", zh: "熟食" },
+        { value: "frozen", en: "Frozen", zh: "冷冻食品" },
+        { value: "other", en: "Other", zh: "其他" }
+      ];
+
+      const locationOptions = [
+        { value: "chiller1", en: "Chiller 1", zh: "冷藏柜 1" },
+        { value: "chiller2", en: "Chiller 2", zh: "冷藏柜 2" },
+        { value: "chiller3", en: "Chiller 3", zh: "冷藏柜 3" },
+        { value: "chiller4", en: "Chiller 4", zh: "冷藏柜 4" },
+        { value: "freezer1", en: "Freezer 1", zh: "冷冻柜 1" },
+        { value: "freezer2", en: "Freezer 2", zh: "冷冻柜 2" },
+        { value: "bay1", en: "Bay 1", zh: "货架 1" },
+        { value: "bay2", en: "Bay 2", zh: "货架 2" },
+        { value: "bay3", en: "Bay 3", zh: "货架 3" },
+        { value: "bay4", en: "Bay 4", zh: "货架 4" },
+        { value: "bay5", en: "Bay 5", zh: "货架 5" },
+        { value: "bay6", en: "Bay 6", zh: "货架 6" },
+        { value: "backRoom", en: "Back room", zh: "后仓" },
+        { value: "serviceDesk", en: "Service desk", zh: "服务台" }
+      ];
+
+      const itemGrid = document.getElementById("itemGrid");
+      const queueCount = document.getElementById("queueCount");
+      const overlay = document.getElementById("interruptOverlay");
+      const interruptButton = document.getElementById("interruptButton");
+      const advanceInput = document.getElementById("advanceMinutes");
+      const announcement = document.getElementById("announcement");
+      const languageToggle = document.getElementById("languageToggle");
+      const addItemButton = document.getElementById("addItemButton");
+      const addItemDialog = document.getElementById("addItemDialog");
+      const addItemForm = document.getElementById("addItemForm");
+      const addFormError = document.getElementById("addFormError");
+      const viewTabs = document.getElementById("viewTabs");
+      const exportListButton = document.getElementById("exportListButton");
+      let simulatedOffsetSeconds = 0;
+      let interrupted = false;
+      let currentLanguage = "en";
+      let activeView = "pending";
+      let editingItemId = null;
+      let nextItemId = 7;
+      const startedAt = Date.now();
+
+      function t(key) {
+        return translations[currentLanguage][key];
       }
-    });
 
-    document.getElementById("openCount").textContent = open;
-    document.getElementById("wallclock").textContent = timeOfDay(t);
-  }
+      function optionLabel(options, value) {
+        const option = options.find(entry => entry.value === value);
+        return option ? option[currentLanguage] : value;
+      }
 
-  items.forEach(function (item) { grid.appendChild(buildCard(item)); });
-  refresh();
-  setInterval(refresh, 1000);
+      function populateSelect(select, options, placeholder) {
+        const selectedValue = select.value;
+        const fragment = document.createDocumentFragment();
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = placeholder;
+        emptyOption.disabled = true;
+        fragment.appendChild(emptyOption);
+        options.forEach(entry => {
+          const option = document.createElement("option");
+          option.value = entry.value;
+          option.textContent = entry[currentLanguage];
+          fragment.appendChild(option);
+        });
+        select.replaceChildren(fragment);
+        select.value = selectedValue || "";
+      }
 
-  /* ---------------------- interrupt / resume rig ---------------------- */
+      function itemMeta(item) {
+        return `${optionLabel(categoryOptions, item.category)} · ${optionLabel(locationOptions, item.location)} · ${t("quantityMeta")(item.quantity || 1)}`;
+      }
 
-  var veil = document.getElementById("veil");
-  var advInput = document.getElementById("adv");
-  var interruptBtn = document.getElementById("interruptBtn");
-  var resumeBtn = document.getElementById("resumeBtn");
+      function escapeHTML(value) {
+        return String(value).replace(/[&<>'"]/g, character => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "'": "&#39;",
+          '"': "&quot;"
+        })[character]);
+      }
 
-  function openInterrupt() {
-    veil.classList.add("on");
-    veil.setAttribute("aria-hidden", "false");
-    resumeBtn.focus();
-  }
+      const icons = {
+        donation: '<svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8.5 10 4l7 4.5v8H3z"></path><path d="M7 16v-5h6v5M10 4V1.5"></path></svg>',
+        discard: '<svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h14M7 5V2.5h6V5M5.5 5l.8 12h7.4l.8-12M8.5 8v6M11.5 8v6"></path></svg>'
+      };
 
-  function resume() {
-    var mins = parseFloat(advInput.value);
-    if (!isFinite(mins) || mins < 0) mins = 0;
-    advanceMs += mins * MIN;
-    // Apply the new time BEFORE the overlay fades, so the participant only
-    // ever sees already-correct numbers underneath.
-    refresh();
-    veil.classList.remove("on");
-    veil.setAttribute("aria-hidden", "true");
-  }
+      function secondsRemaining(item) {
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        return Math.max(0, item.seconds - elapsed - simulatedOffsetSeconds);
+      }
 
-  interruptBtn.addEventListener("click", openInterrupt);
-  resumeBtn.addEventListener("click", resume);
+      function urgencyFor(seconds) {
+        if (seconds < 60 * 60) return { key: "red", label: t("critical"), bar: 100 };
+        if (seconds <= 4 * 60 * 60) return { key: "amber", label: t("soon"), bar: 66 };
+        return { key: "green", label: t("onTrack"), bar: 34 };
+      }
 
-  // Discreet keyboard fallback for the researcher: Ctrl/Cmd + Shift + I
-  document.addEventListener("keydown", function (ev) {
-    if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key.toLowerCase() === "i") {
-      ev.preventDefault();
-      if (veil.classList.contains("on")) { resume(); } else { openInterrupt(); }
-    }
-  });
-})();
-</script>
+      function formatTime(seconds) {
+        const totalMinutes = Math.ceil(seconds / 60);
+        if (totalMinutes <= 0) return t("cutoffReached");
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        if (currentLanguage === "zh") {
+          if (hours === 0) return `${minutes}分钟`;
+          if (minutes === 0) return `${hours}小时`;
+          return `${hours}小时${minutes}分钟`;
+        }
+        if (hours === 0) return `${minutes}m`;
+        if (minutes === 0) return `${hours}h`;
+        return `${hours}h ${minutes}m`;
+      }
+
+      function timeMarkup(seconds) {
+        const formatted = formatTime(seconds);
+        if (seconds <= 0) return formatted;
+        if (currentLanguage === "zh") return `<span class="remaining-word">${t("remaining")}</span> ${formatted}`;
+        return `${formatted} <span class="remaining-word">${t("remaining")}</span>`;
+      }
+
+      function createCard(item, rank) {
+        const remaining = secondsRemaining(item);
+        const urgency = urgencyFor(remaining);
+        const card = document.createElement("article");
+        const isManageView = activeView !== "pending";
+        card.className = `item-card urgency-${urgency.key}${item.decision ? " is-complete" : ""}${isManageView ? " is-manage-view" : ""}`;
+        card.dataset.id = item.id;
+        card.style.setProperty("--bar-width", `${urgency.bar}%`);
+        const decisionText = item.decision === "donation" ? t("markedDonation") : t("markedDiscard");
+        const actions = isManageView
+          ? `<button class="action-btn donation" type="button" data-action="edit">${t("editItem")}</button>
+             <button class="action-btn discard" type="button" data-action="restore">${t("restorePending")}</button>`
+          : `<button class="action-btn donation" type="button" data-action="donation">${icons.donation} ${t("donate")}</button>
+             <button class="action-btn discard" type="button" data-action="discard">${icons.discard} ${t("discard")}</button>`;
+
+        card.innerHTML = `
+          <div class="card-body">
+            <div class="card-topline">
+              <span class="rank">${t("priority")(rank)}</span>
+              <span class="urgency-badge">${urgency.label}</span>
+            </div>
+            <h2 class="item-name">${escapeHTML(item.name[currentLanguage])}</h2>
+            <p class="item-meta">${escapeHTML(itemMeta(item))}</p>
+            <div class="time-block">
+              <span class="time-label">${t("cutoffLabel")}</span>
+              <span class="time-value">${timeMarkup(remaining)}</span>
+              <div class="urgency-track" aria-hidden="true"><div class="urgency-fill"></div></div>
+            </div>
+          </div>
+          <div class="card-actions">
+            ${actions}
+          </div>
+          <div class="confirmation" role="status">
+            <span class="checkmark" aria-hidden="true">✓</span>
+            <span>${item.decision ? decisionText : ""}</span>
+          </div>`;
+        return card;
+      }
+
+      function render() {
+        const sortedItems = [...items].sort((a, b) => secondsRemaining(a) - secondsRemaining(b));
+        const visibleItems = sortedItems.filter(item => {
+          if (activeView === "pending") return !item.decision;
+          return item.decision === activeView;
+        });
+        const fragment = document.createDocumentFragment();
+        visibleItems.forEach((item, index) => fragment.appendChild(createCard(item, index + 1)));
+        if (visibleItems.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-list";
+          empty.textContent = t(activeView === "pending" ? "emptyPending" : activeView === "donation" ? "emptyDonation" : "emptyDiscard");
+          fragment.appendChild(empty);
+        }
+        itemGrid.replaceChildren(fragment);
+        const outstanding = items.filter(item => !item.decision).length;
+        const donationCount = items.filter(item => item.decision === "donation").length;
+        const discardCount = items.filter(item => item.decision === "discard").length;
+        queueCount.textContent = t("queue")(outstanding);
+        document.getElementById("pendingTab").textContent = t("pendingTab")(outstanding);
+        document.getElementById("donationTab").textContent = t("donationTab")(donationCount);
+        document.getElementById("discardTab").textContent = t("discardTab")(discardCount);
+        viewTabs.querySelectorAll(".view-tab").forEach(tab => {
+          tab.setAttribute("aria-selected", String(tab.dataset.view === activeView));
+        });
+        exportListButton.hidden = activeView === "pending";
+        exportListButton.disabled = visibleItems.length === 0;
+      }
+
+      function updateTimers() {
+        itemGrid.querySelectorAll(".item-card").forEach(card => {
+          const item = items.find(entry => entry.id === Number(card.dataset.id));
+          if (!item) return;
+          const remaining = secondsRemaining(item);
+          const urgency = urgencyFor(remaining);
+          card.classList.remove("urgency-red", "urgency-amber", "urgency-green");
+          card.classList.add(`urgency-${urgency.key}`);
+          card.style.setProperty("--bar-width", `${urgency.bar}%`);
+          card.querySelector(".urgency-badge").textContent = urgency.label;
+          card.querySelector(".time-value").innerHTML = timeMarkup(remaining);
+        });
+      }
+
+      function applyLanguage() {
+        const text = translations[currentLanguage];
+        document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+        document.title = text.pageTitleMeta;
+        document.querySelector('meta[name="description"]').content = text.description;
+        document.getElementById("brand").setAttribute("aria-label", text.brandAria);
+        document.getElementById("brandContext").textContent = text.brandContext;
+        document.getElementById("headerStatusText").textContent = text.countdownActive;
+        languageToggle.textContent = text.switchText;
+        languageToggle.setAttribute("aria-label", text.switchLabel);
+        languageToggle.title = text.switchLabel;
+        document.getElementById("page-title").textContent = text.pageTitle;
+        document.getElementById("introText").textContent = text.intro;
+        addItemButton.textContent = text.addItem;
+        document.getElementById("addDialogTitle").textContent = editingItemId ? text.editDialogTitle : text.addDialogTitle;
+        document.getElementById("addDialogHelper").textContent = editingItemId ? text.editDialogHelper : text.addDialogHelper;
+        document.getElementById("closeAddDialog").setAttribute("aria-label", text.closeDialog);
+        document.getElementById("itemNameLabel").textContent = text.itemNameLabel;
+        document.getElementById("itemCategoryLabel").textContent = text.itemCategoryLabel;
+        document.getElementById("itemLocationLabel").textContent = text.itemLocationLabel;
+        populateSelect(document.getElementById("newItemCategory"), categoryOptions, text.selectCategory);
+        populateSelect(document.getElementById("newItemLocation"), locationOptions, text.selectLocation);
+        document.getElementById("itemQuantityLabel").textContent = text.itemQuantityLabel;
+        document.getElementById("remainingTimeLabel").textContent = text.remainingTimeLabel;
+        document.getElementById("hoursLabel").textContent = text.hours;
+        document.getElementById("minutesLabel").textContent = text.minutes;
+        document.getElementById("hoursUnit").textContent = text.hoursUnit;
+        document.getElementById("minutesUnit").textContent = text.minutesUnit;
+        document.getElementById("itemStatusLabel").textContent = text.itemStatusLabel;
+        document.getElementById("statusPendingOption").textContent = text.statusPending;
+        document.getElementById("statusDonationOption").textContent = text.statusDonation;
+        document.getElementById("statusDiscardOption").textContent = text.statusDiscard;
+        document.getElementById("cancelAddItem").textContent = text.cancel;
+        document.getElementById("submitAddItem").textContent = editingItemId ? text.saveChanges : text.addToList;
+        addFormError.textContent = text.addError;
+        document.getElementById("urgencyKey").setAttribute("aria-label", text.urgencyKeyAria);
+        document.getElementById("keyLabel").textContent = text.keyLabel;
+        document.getElementById("redKey").textContent = text.redKey;
+        document.getElementById("amberKey").textContent = text.amberKey;
+        document.getElementById("greenKey").textContent = text.greenKey;
+        viewTabs.setAttribute("aria-label", text.tabsAria);
+        exportListButton.textContent = text.exportList;
+        itemGrid.setAttribute("aria-label", text.gridAria);
+        document.getElementById("researchDock").setAttribute("aria-label", text.researchAria);
+        document.getElementById("researchOnly").textContent = text.researcherOnly;
+        document.getElementById("advanceLabel").textContent = text.advanceBy;
+        document.getElementById("minuteUnit").textContent = text.minuteUnit;
+        interruptButton.textContent = interrupted ? text.resume : text.simulateInterrupt;
+        document.getElementById("interruptTitle").textContent = text.interruptTitle;
+        document.getElementById("interruptDescription").textContent = text.interruptDescription;
+        render();
+      }
+
+      function closeAddDialog() {
+        if (addItemDialog.open) addItemDialog.close();
+        addFormError.classList.remove("is-visible");
+        editingItemId = null;
+        document.getElementById("itemStatusField").hidden = true;
+        addItemButton.focus();
+      }
+
+      addItemButton.addEventListener("click", () => {
+        editingItemId = null;
+        addItemForm.reset();
+        document.getElementById("itemStatusField").hidden = true;
+        document.getElementById("addDialogTitle").textContent = t("addDialogTitle");
+        document.getElementById("addDialogHelper").textContent = t("addDialogHelper");
+        document.getElementById("submitAddItem").textContent = t("addToList");
+        addFormError.classList.remove("is-visible");
+        addItemDialog.showModal();
+        document.getElementById("newItemName").focus();
+      });
+
+      function openEditDialog(item) {
+        editingItemId = item.id;
+        const remainingMinutes = Math.max(1, Math.ceil(secondsRemaining(item) / 60));
+        document.getElementById("newItemName").value = item.name[currentLanguage];
+        document.getElementById("newItemCategory").value = item.category;
+        document.getElementById("newItemLocation").value = item.location;
+        document.getElementById("newItemQuantity").value = item.quantity || 1;
+        document.getElementById("newItemHours").value = Math.floor(remainingMinutes / 60);
+        document.getElementById("newItemMinutes").value = remainingMinutes % 60;
+        document.getElementById("newItemStatus").value = item.decision || "pending";
+        document.getElementById("itemStatusField").hidden = false;
+        document.getElementById("addDialogTitle").textContent = t("editDialogTitle");
+        document.getElementById("addDialogHelper").textContent = t("editDialogHelper");
+        document.getElementById("submitAddItem").textContent = t("saveChanges");
+        addFormError.classList.remove("is-visible");
+        addItemDialog.showModal();
+        document.getElementById("newItemName").focus();
+      }
+
+      document.getElementById("closeAddDialog").addEventListener("click", closeAddDialog);
+      document.getElementById("cancelAddItem").addEventListener("click", closeAddDialog);
+      addItemDialog.addEventListener("close", () => {
+        editingItemId = null;
+        document.getElementById("itemStatusField").hidden = true;
+        addFormError.classList.remove("is-visible");
+      });
+
+      addItemForm.addEventListener("input", () => {
+        addFormError.classList.remove("is-visible");
+      });
+
+      addItemForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const name = document.getElementById("newItemName").value.trim();
+        const category = document.getElementById("newItemCategory").value;
+        const location = document.getElementById("newItemLocation").value;
+        const quantity = Number.parseInt(document.getElementById("newItemQuantity").value, 10);
+        const hours = Number.parseInt(document.getElementById("newItemHours").value, 10);
+        const minutes = Number.parseInt(document.getElementById("newItemMinutes").value, 10);
+        const safeHours = Number.isFinite(hours) ? Math.min(72, Math.max(0, hours)) : 0;
+        const safeMinutes = Number.isFinite(minutes) ? Math.min(59, Math.max(0, minutes)) : 0;
+        const totalSeconds = (safeHours * 60 + safeMinutes) * 60;
+
+        if (!name || !category || !location || !Number.isFinite(quantity) || quantity < 1 || quantity > 999 || totalSeconds <= 0) {
+          addFormError.classList.add("is-visible");
+          return;
+        }
+
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        const storedSeconds = totalSeconds + elapsed + simulatedOffsetSeconds;
+        const editedItem = editingItemId ? items.find(item => item.id === editingItemId) : null;
+        let targetItem;
+
+        if (editedItem) {
+          editedItem.name = { en: name, zh: name };
+          editedItem.category = category;
+          editedItem.location = location;
+          editedItem.quantity = quantity;
+          editedItem.seconds = storedSeconds;
+          const status = document.getElementById("newItemStatus").value;
+          if (status === "pending") delete editedItem.decision;
+          else editedItem.decision = status;
+          targetItem = editedItem;
+        } else {
+          targetItem = {
+            id: nextItemId++,
+            name: { en: name, zh: name },
+            category,
+            location,
+            quantity,
+            seconds: storedSeconds
+          };
+          items.push(targetItem);
+        }
+
+        const wasEditing = Boolean(editedItem);
+        editingItemId = null;
+        addItemForm.reset();
+        addItemDialog.close();
+        document.getElementById("itemStatusField").hidden = true;
+        addFormError.classList.remove("is-visible");
+        render();
+        announcement.textContent = wasEditing ? t("savedAnnouncement")(name) : t("addedAnnouncement")(name);
+
+        window.requestAnimationFrame(() => {
+          const addedCard = itemGrid.querySelector(`[data-id="${targetItem.id}"]`);
+          if (addedCard) addedCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+
+      viewTabs.addEventListener("click", event => {
+        const tab = event.target.closest("button[data-view]");
+        if (!tab) return;
+        activeView = tab.dataset.view;
+        render();
+        tab.focus();
+      });
+
+      exportListButton.addEventListener("click", () => {
+        if (activeView === "pending") return;
+        const exportItems = items.filter(item => item.decision === activeView);
+        if (exportItems.length === 0) return;
+        const csvCell = value => `"${String(value).replace(/"/g, '""')}"`;
+        const rows = [t("exportHeaders")];
+        exportItems.forEach(item => {
+          rows.push([
+            item.name[currentLanguage],
+            optionLabel(categoryOptions, item.category),
+            optionLabel(locationOptions, item.location),
+            item.quantity || 1,
+            formatTime(secondsRemaining(item)),
+            activeView === "donation" ? t("exportStatusDonation") : t("exportStatusDiscard")
+          ]);
+        });
+        const csv = "\ufeff" + rows.map(row => row.map(csvCell).join(",")).join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const download = document.createElement("a");
+        const date = new Date().toISOString().slice(0, 10);
+        download.href = url;
+        download.download = `freshflow-${activeView}-list-${date}.csv`;
+        document.body.appendChild(download);
+        download.click();
+        download.remove();
+        URL.revokeObjectURL(url);
+        announcement.textContent = t("exportedAnnouncement");
+      });
+
+      languageToggle.addEventListener("click", () => {
+        currentLanguage = currentLanguage === "en" ? "zh" : "en";
+        applyLanguage();
+        languageToggle.focus();
+      });
+
+      itemGrid.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const card = button.closest(".item-card");
+        const item = items.find(entry => entry.id === Number(card.dataset.id));
+        if (!item) return;
+
+        if (button.dataset.action === "edit") {
+          openEditDialog(item);
+          return;
+        }
+
+        if (button.dataset.action === "restore") {
+          delete item.decision;
+          render();
+          announcement.textContent = t("restoredAnnouncement")(item.name[currentLanguage]);
+          return;
+        }
+
+        if (item.decision) return;
+        item.decision = button.dataset.action;
+        card.classList.add("is-complete");
+        card.querySelector(".confirmation span:last-child").textContent = item.decision === "donation" ? t("markedDonation") : t("markedDiscard");
+        announcement.textContent = item.decision === "donation"
+          ? t("announcedDonation")(item.name[currentLanguage])
+          : t("announcedDiscard")(item.name[currentLanguage]);
+        window.setTimeout(render, 900);
+      });
+
+      interruptButton.addEventListener("click", () => {
+        if (!interrupted) {
+          interrupted = true;
+          overlay.classList.add("is-visible");
+          overlay.setAttribute("aria-hidden", "false");
+          interruptButton.textContent = t("resume");
+          interruptButton.classList.add("is-resume");
+          advanceInput.disabled = true;
+          document.body.style.overflow = "hidden";
+          interruptButton.focus();
+          return;
+        }
+
+        const requestedMinutes = Number.parseInt(advanceInput.value, 10);
+        const safeMinutes = Number.isFinite(requestedMinutes) ? Math.min(240, Math.max(0, requestedMinutes)) : 0;
+        simulatedOffsetSeconds += safeMinutes * 60;
+        advanceInput.value = safeMinutes;
+        interrupted = false;
+        render();
+        overlay.classList.remove("is-visible");
+        overlay.setAttribute("aria-hidden", "true");
+        interruptButton.textContent = t("simulateInterrupt");
+        interruptButton.classList.remove("is-resume");
+        advanceInput.disabled = false;
+        document.body.style.overflow = "";
+        announcement.textContent = t("resumed");
+        interruptButton.focus();
+      });
+
+      applyLanguage();
+      window.setInterval(() => {
+        if (!interrupted) updateTimers();
+      }, 1000);
+    })();
+  </script>
 </body>
 </html>
